@@ -16,51 +16,6 @@ This repository contains the complete implementation of a hierarchical mixed-eff
 - Comprehensive control for age decline, team quality, and selection bias
 - Interactive visualizations and reports
 
-## Project Structure
-
-```
-nfl-veteran-transitions/
-├── data/                          # Data storage
-│   ├── raw/                       # Raw data from nflfastR
-│   ├── processed/                 # Cleaned and merged datasets
-│   └── README.md                  # Data dictionary
-├── src/                           # Source code
-│   ├── python/                    # Python implementation
-│   │   ├── data_collection.py     # nfl_data_py data extraction
-│   │   ├── preprocessing.py       # Data cleaning and feature engineering
-│   │   ├── modeling.py            # Mixed-effects models (statsmodels)
-│   │   ├── visualization.py       # Plotting functions
-│   │   └── utils.py               # Helper functions
-│   └── r/                         # R implementation
-│       ├── 01_data_collection.R   # nflfastR data extraction
-│       ├── 02_preprocessing.R     # Data cleaning
-│       ├── 03_modeling.R          # lme4/nlme mixed-effects models
-│       ├── 04_visualization.R     # ggplot2 visualizations
-│       └── utils.R                # Helper functions
-├── notebooks/                     # Jupyter/R Markdown notebooks
-│   ├── python/                    
-│   │   └── 01_exploratory_analysis.ipynb
-│   └── r/
-│       └── 01_exploratory_analysis.Rmd
-├── outputs/                       # Generated outputs
-│   ├── figures/                   # Plots and visualizations
-│   ├── tables/                    # Summary statistics tables
-│   └── models/                    # Saved model objects
-├── tests/                         # Unit tests
-│   ├── test_python.py
-│   └── test_r.R
-├── docs/                          # Documentation
-│   ├── paper/                     # Academic paper
-│   │   └── NFL_Veterans_Paper.md
-│   └── methodology.md             # Detailed methods
-├── requirements.txt               # Python dependencies
-├── environment.yml                # Conda environment
-├── renv.lock                      # R package versions
-├── .gitignore
-└── README.md
-```
-
-## Installation
 
 ### Python Setup
 
@@ -148,28 +103,7 @@ No API keys or authentication required.
 3. **Comprehensive Controls**: Age, experience, team quality, opponent strength
 4. **Longitudinal Design**: 2 years pre-transition, 2 years post-transition
 
-### Statistical Models
-
-**Final Model Specification:**
-```
-Y_ij = β₀ + β₁·Post_ij + β₂'·Position_k + β₃'·(Post × Position) +
-       β₄·Age_ij + β₅·Age²_ij + β₆·Experience_ij + 
-       β₇·TeamQual_ij + β₈·GamesPlayed_ij +
-       u₀ᵢ + u₁ᵢ·RelTime_ij + e_ij
-```
-
-Where:
-- Random effects: (u₀ᵢ, u₁ᵢ) ~ N(0, Σ)
-- Heteroskedastic errors: e_ij ~ N(0, σ²_pre) or N(0, σ²_post)
-
-## Results
-
-### Preliminary Findings (2024 Running Backs)
-- Saquon Barkley (NYG → PHI): +1.4 YPC improvement
-- Derrick Henry (TEN → BAL): +0.8 YPC improvement
-- Josh Jacobs (LV → GB): +0.9 YPC improvement
-
-Full results available in `outputs/tables/`
+Full results available in `data/plots`
 
 ## Citation
 
