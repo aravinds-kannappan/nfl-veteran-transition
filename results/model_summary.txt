@@ -1,0 +1,41 @@
+Linear mixed model fit by REML ['lmerMod']
+Formula: z_score ~ post_transition * position_group + poly(age, 2) + years_exp +      team_quality + (1 + rel_time | gsis_id)
+   Data: df2
+
+REML criterion at convergence: 1542.6
+
+Scaled residuals: 
+     Min       1Q   Median       3Q      Max 
+-2.56954 -0.66475 -0.03584  0.60646  2.67284 
+
+Random effects:
+ Groups   Name        Variance Std.Dev. Corr 
+ gsis_id  (Intercept) 0.09983  0.3160        
+          rel_time    0.02076  0.1441   -0.34
+ Residual             0.63912  0.7995        
+Number of obs: 599, groups:  gsis_id, 200
+
+Fixed effects:
+                                    Estimate Std. Error t value
+(Intercept)                         -0.27274    0.32373  -0.842
+post_transition                      0.09118    0.19971   0.457
+position_groupRB                     0.01946    0.21995   0.088
+position_groupWR_TE                 -0.18235    0.19957  -0.914
+poly(age, 2)1                       -2.98927    3.72989  -0.801
+poly(age, 2)2                        2.20136    1.05832   2.080
+years_exp                            0.03424    0.05098   0.672
+team_quality                         2.49854    0.31524   7.926
+post_transition:position_groupRB    -0.27386    0.24634  -1.112
+post_transition:position_groupWR_TE  0.13908    0.21954   0.634
+
+Correlation of Fixed Effects:
+            (Intr) pst_tr pst_RB p_WR_T p(,2)1 p(,2)2 yrs_xp tm_qlt p_:_RB
+post_trnstn -0.387                                                        
+postn_grpRB -0.390  0.598                                                 
+pstn_gWR_TE -0.445  0.660  0.805                                          
+poly(ag,2)1  0.764 -0.002  0.156  0.150                                   
+poly(ag,2)2  0.183 -0.004  0.025  0.033  0.228                            
+years_exp   -0.833 -0.030 -0.085 -0.075 -0.952 -0.262                     
+team_qualty  0.077  0.005 -0.120 -0.132  0.022  0.000 -0.018              
+pst_trn:_RB  0.365 -0.799 -0.734 -0.573  0.014  0.111 -0.027  0.018       
+pst_:_WR_TE  0.419 -0.897 -0.583 -0.738  0.031  0.118 -0.043  0.007  0.752
