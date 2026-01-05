@@ -3,11 +3,7 @@ data_collection.py
 NFL Veterans Team Change Analysis
 Purpose: Data loading, validation, and initial enrichment
 
-This script focuses on:
-1. Loading nfl_panel_for_python.csv
-2. Data validation and quality checks
-3. Creating basic derived metrics
-4. Saving to enriched format
+FIXED VERSION - Uses correct CSV path from data/processed/
 """
 
 import pandas as pd
@@ -18,7 +14,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Set up directories
-DATA_DIR = Path("data")
+DATA_DIR = Path("data/processed")
 ENRICHED_DIR = Path("data/enriched")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 ENRICHED_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,11 +29,19 @@ print("=" * 80)
 
 print("\n1. Loading nfl_panel_for_python.csv...")
 
+# Correct path to the CSV file
+csv_file = DATA_DIR / "nfl_panel_for_python.csv"
+
 try:
-    df = pd.read_csv(DATA_DIR / "nfl_panel_for_python.csv")
+    df = pd.read_csv(csv_file)
     print(f"   ✓ Successfully loaded: {len(df):,} rows × {len(df.columns)} columns")
 except FileNotFoundError:
-    print(f"   ❌ Error: nfl_panel_for_python.csv not found in {DATA_DIR}/")
+    print(f"   ❌ Error: nfl_panel_for_python.csv not found at {csv_file}")
+    print(f"   Current directory: {Path.cwd()}")
+    print(f"   Available files in data/processed/:")
+    if DATA_DIR.exists():
+        for file in DATA_DIR.glob("*"):
+            print(f"     - {file.name}")
     exit(1)
 
 ################################################################################
