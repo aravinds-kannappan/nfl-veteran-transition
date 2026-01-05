@@ -1,17 +1,15 @@
 """
 data_collection.py
 NFL Veterans Team Change Analysis
-Purpose: Advanced data integration, enrichment, and cross-validation
+Purpose: Data loading, validation, and initial enrichment
 
-This Python script focuses on:
-1. Integrating multiple data sources beyond basic nflfastR
-2. Advanced data quality checks and anomaly detection
-3. External data enrichment (injuries, trades, contracts)
-4. Cross-validation between different data sources
-5. Creating advanced derived metrics not available in R pipeline
+This script focuses on:
+1. Loading nfl_panel_for_python.csv
+2. Data validation and quality checks
+3. Creating basic derived metrics
+4. Saving to enriched format
 """
 
-import nfl_data_py as nfl
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -20,334 +18,263 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Set up directories
-DATA_DIR = Path("data/raw")
+DATA_DIR = Path("data")
 ENRICHED_DIR = Path("data/enriched")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 ENRICHED_DIR.mkdir(parents=True, exist_ok=True)
 
-# Define seasons
-SEASONS = list(range(2015, 2020)) + list(range(2022, 2025))
-
 print("=" * 80)
-print("PYTHON ADVANCED DATA INTEGRATION PIPELINE")
+print("PYTHON DATA LOADING AND VALIDATION PIPELINE")
 print("=" * 80)
 
 ################################################################################
-# 1. ADVANCED INJURY DATA INTEGRATION
+# 1. LOAD DATA FROM CSV
 ################################################################################
 
-print("\n1. Integrating injury reports and missed games...")
-
-# Download injury data
-try:
-    injuries = nfl.import_injuries(years=SEASONS)
-    
-    # Aggregate injury severity by player-season
-    injury_analysis = injuries.groupby(['season', 'team', 'full_name']).agg({
-        'report_status': lambda x: (x == 'Out').sum(),  # Games missed
-        'date': 'count'  # Total injury reports
-    }).reset_index()
-    
-    injury_analysis.columns = ['season', 'team', 'player_name', 'games_out', 'injury_reports']
-    
-    # Calculate injury severity score
-    injury_analysis['injury_severity'] = (
-        injury_analysis['games_out'] * 2 + injury_analysis['injury_reports']
-    )
-    
-    injury_analysis.to_parquet(ENRICHED_DIR / "injury_history.parquet")
-    print(f"   Processed injury data for {len(injury_analysis):,} player-seasons")
-    
-except Exception as e:
-    print(f"   Warning: Could not load injury data: {e}")
-
-################################################################################
-# 2. NEXT GEN STATS INTEGRATION (Advanced Tracking Metrics)
-################################################################################
-
-print("\n2. Integrating Next Gen Stats (advanced tracking)...")
-
-# Download Next Gen Stats for receiving
-try:
-    ngs_receiving = nfl.import_ngs_data(stat_type='receiving', years=SEASONS)
-    
-    # Key metrics: average_separation, cushion, target_share
-    ngs_receiving_clean = ngs_receiving[[
-        'season', 'week', 'player_display_name', 'team_abbr',
-        'avg_cushion', 'avg_separation', 'percent_share_of_intended_air_yards',
-        'avg_intended_air_yards', 'avg_yac_above_expectation'
-    ]].copy()
-    
-    ngs_receiving_clean.to_parquet(ENRICHED_DIR / "ngs_receiving.parquet")
-    print(f"   NGS Receiving: {len(ngs_receiving_clean):,} player-week observations")
-    
-except Exception as e:
-    print(f"   Warning: NGS receiving data not available: {e}")
-
-# Download Next Gen Stats for rushing
-try:
-    ngs_rushing = nfl.import_ngs_data(stat_type='rushing', years=SEASONS)
-    
-    ngs_rushing_clean = ngs_rushing[[
-        'season', 'week', 'player_display_name', 'team_abbr',
-        'efficiency', 'percent_attempts_gte_8_defenders',
-        'avg_time_to_los', 'rush_yards_over_expected_per_att'
-    ]].copy()
-    
-    ngs_rushing_clean.to_parquet(ENRICHED_DIR / "ngs_rushing.parquet")
-    print(f"   NGS Rushing: {len(ngs_rushing_clean):,} player-week observations")
-    
-except Exception as e:
-    print(f"   Warning: NGS rushing data not available: {e}")
-
-# Download Next Gen Stats for passing
-try:
-    ngs_passing = nfl.import_ngs_data(stat_type='passing', years=SEASONS)
-    
-    ngs_passing_clean = ngs_passing[[
-        'season', 'week', 'player_display_name', 'team_abbr',
-        'avg_time_to_throw', 'avg_completed_air_yards',
-        'aggressiveness', 'max_completed_air_distance',
-        'avg_air_yards_differential'
-    ]].copy()
-    
-    ngs_passing_clean.to_parquet(ENRICHED_DIR / "ngs_passing.parquet")
-    print(f"   NGS Passing: {len(ngs_passing_clean):,} player-week observations")
-    
-except Exception as e:
-    print(f"   Warning: NGS passing data not available: {e}")
-
-################################################################################
-# 3. SNAP COUNT ANALYSIS (Playing Time Quality)
-################################################################################
-
-print("\n3. Analyzing snap counts and usage rates...")
+print("\n1. Loading nfl_panel_for_python.csv...")
 
 try:
-    snap_counts = nfl.import_snap_counts(years=SEASONS)
-    
-    # Calculate snap share and position-specific usage
-    snap_analysis = snap_counts.groupby(['season', 'game_id', 'player', 'team']).agg({
-        'offense_snaps': 'sum',
-        'offense_pct': 'mean',
-        'defense_snaps': 'sum'
-    }).reset_index()
-    
-    snap_analysis.to_parquet(ENRICHED_DIR / "snap_counts.parquet")
-    print(f"   Snap count data: {len(snap_analysis):,} player-game observations")
-    
-except Exception as e:
-    print(f"   Warning: Snap count data not available: {e}")
-
-################################################################################
-# 4. ADVANCED PFF GRADES INTEGRATION (if available)
-################################################################################
-
-print("\n4. Checking for PFF grades data...")
-
-try:
-    pff_data = nfl.import_pfr_advanced(years=SEASONS, pos='all')
-    
-    pff_data.to_parquet(ENRICHED_DIR / "pfr_advanced.parquet")
-    print(f"   PFF/Advanced stats: {len(pff_data):,} observations")
-    
-except Exception as e:
-    print(f"   Note: PFF data not available through nfl_data_py: {e}")
-
-################################################################################
-# 5. DEPTH CHART ANALYSIS
-################################################################################
-
-print("\n5. Analyzing depth chart positions over time...")
-
-try:
-    depth_charts = nfl.import_depth_charts(years=SEASONS)
-    
-    # Track position on depth chart at time of transition
-    depth_analysis = depth_charts.groupby(['season', 'club_code', 'full_name']).agg({
-        'depth_team': 'first',
-        'position': 'first',
-        'formation': 'first'
-    }).reset_index()
-    
-    depth_analysis.to_parquet(ENRICHED_DIR / "depth_charts.parquet")
-    print(f"   Depth chart data: {len(depth_analysis):,} player-season entries")
-    
-except Exception as e:
-    print(f"   Warning: Depth chart data not available: {e}")
-
-################################################################################
-# 6. CROSS-VALIDATION: EPA vs Traditional Stats
-################################################################################
-
-print("\n6. Cross-validating EPA with traditional metrics...")
-
-# Load basic data
-weekly_stats = nfl.import_weekly_data(years=SEASONS)
-pbp_data = nfl.import_pbp_data(years=SEASONS[:2], downcast=True)  # Sample for validation
-
-# Calculate EPA from play-by-play
-epa_from_pbp = pbp_data[pbp_data['epa'].notna()].groupby(['season', 'week', 'posteam']).agg({
-    'epa': ['mean', 'sum', 'std']
-}).reset_index()
-
-# Compare with weekly stats EPA
-correlation_check = pd.DataFrame({
-    'metric': ['EPA_PlayByPlay', 'EPA_Weekly'],
-    'source': ['play_by_play', 'weekly_aggregated'],
-    'availability': [
-        pbp_data['epa'].notna().mean() * 100,
-        weekly_stats['passing_epa'].notna().mean() * 100 if 'passing_epa' in weekly_stats.columns else 0
-    ]
-})
-
-print("\n   EPA Data Quality:")
-print(correlation_check)
-
-correlation_check.to_csv(ENRICHED_DIR / "data_quality_validation.csv", index=False)
-
-################################################################################
-# 7. ANOMALY DETECTION IN PERFORMANCE CHANGES
-################################################################################
-
-print("\n7. Detecting statistical anomalies in veteran transitions...")
-
-# Load processed data from R pipeline if available
-try:
-    veteran_changes = pd.read_csv("data/processed/veteran_changes.csv")
-    analysis_data = pd.read_csv("data/processed/analysis_dataset.csv")
-    
-    # Detect outliers using IQR method
-    def detect_outliers(df, metric_col):
-        Q1 = df[metric_col].quantile(0.25)
-        Q3 = df[metric_col].quantile(0.75)
-        IQR = Q3 - Q1
-        outliers = (df[metric_col] < (Q1 - 3 * IQR)) | (df[metric_col] > (Q3 + 3 * IQR))
-        return outliers
-    
-    # Identify extreme performance changes
-    performance_changes = analysis_data.groupby('player_id').agg({
-        'primary_metric': lambda x: x.iloc[-1] - x.iloc[0] if len(x) >= 2 else np.nan
-    }).reset_index()
-    
-    performance_changes.columns = ['player_id', 'performance_change']
-    performance_changes['is_outlier'] = detect_outliers(
-        performance_changes.dropna(), 'performance_change'
-    )
-    
-    # Flag extreme cases for investigation
-    extreme_cases = performance_changes[
-        performance_changes['is_outlier'].fillna(False)
-    ]
-    
-    if len(extreme_cases) > 0:
-        extreme_cases.to_csv(ENRICHED_DIR / "extreme_performance_changes.csv", index=False)
-        print(f"   Identified {len(extreme_cases)} extreme performance changes")
-    
+    df = pd.read_csv(DATA_DIR / "nfl_panel_for_python.csv")
+    print(f"   ✓ Successfully loaded: {len(df):,} rows × {len(df.columns)} columns")
 except FileNotFoundError:
-    print("   Skipping (R processed data not yet available)")
+    print(f"   ❌ Error: nfl_panel_for_python.csv not found in {DATA_DIR}/")
+    exit(1)
 
 ################################################################################
-# 8. CONTEXTUAL ENRICHMENT: Weather, Travel, Rest Days
+# 2. DATA STRUCTURE INSPECTION
 ################################################################################
 
-print("\n8. Enriching with contextual game factors...")
+print("\n2. Inspecting data structure...")
 
-try:
-    schedules = nfl.import_schedules(years=SEASONS)
-    
-    # Calculate rest days between games
-    schedules = schedules.sort_values(['home_team', 'gameday'])
-    schedules['days_rest_home'] = schedules.groupby('home_team')['gameday'].diff().dt.days
-    schedules['days_rest_away'] = schedules.groupby('away_team')['gameday'].diff().dt.days
-    
-    # Flag divisional games (tougher competition)
-    schedules['is_divisional'] = schedules['game_type'] == 'DIV'
-    
-    # Travel distance approximation (could be enhanced with stadium coordinates)
-    schedules['is_cross_country'] = (
-        ((schedules['home_team'].str.contains('SF|LAC|LAR|SEA|LV')) & 
-         (schedules['away_team'].str.contains('NE|NYJ|NYG|BUF|MIA'))) |
-        ((schedules['away_team'].str.contains('SF|LAC|LAR|SEA|LV')) & 
-         (schedules['home_team'].str.contains('NE|NYJ|NYG|BUF|MIA')))
-    )
-    
-    schedules.to_parquet(ENRICHED_DIR / "enriched_schedules.parquet")
-    print(f"   Enriched {len(schedules):,} games with contextual factors")
-    
-except Exception as e:
-    print(f"   Warning: Could not enrich schedules: {e}")
+print(f"\n   Column names and types:")
+for col in df.columns:
+    print(f"     • {col}: {df[col].dtype}")
+
+print(f"\n   Data shape: {df.shape}")
+print(f"\n   First 5 rows:")
+print(df.head())
 
 ################################################################################
-# 9. MACHINE LEARNING FEATURE ENGINEERING
+# 3. BASIC DATA QUALITY CHECKS
 ################################################################################
 
-print("\n9. Creating ML-ready features for predictive modeling...")
+print("\n3. Running data quality checks...")
 
-# Create rolling averages and momentum indicators
-def create_ml_features(df, player_col, metric_col, window=4):
-    """Create rolling statistics for ML models."""
-    df = df.sort_values(['player_id', 'season', 'week'])
-    
-    df[f'{metric_col}_rolling_mean'] = (
-        df.groupby(player_col)[metric_col]
-        .transform(lambda x: x.rolling(window, min_periods=1).mean())
-    )
-    
-    df[f'{metric_col}_rolling_std'] = (
-        df.groupby(player_col)[metric_col]
-        .transform(lambda x: x.rolling(window, min_periods=1).std())
-    )
-    
-    df[f'{metric_col}_momentum'] = (
-        df.groupby(player_col)[metric_col]
-        .transform(lambda x: x.diff())
-    )
-    
-    return df
+quality_metrics = {
+    'Total rows': len(df),
+    'Total columns': len(df.columns),
+    'Memory usage (MB)': df.memory_usage(deep=True).sum() / 1024**2,
+    'Duplicate rows': df.duplicated().sum(),
+    'Rows with any nulls': df.isnull().any(axis=1).sum(),
+}
 
-# Apply to weekly stats (sample)
-weekly_sample = weekly_stats.head(10000).copy()  # Sample for demonstration
-for metric in ['rushing_yards', 'receiving_yards', 'passing_yards']:
-    if metric in weekly_sample.columns:
-        weekly_sample = create_ml_features(weekly_sample, 'player_id', metric)
+for metric, value in quality_metrics.items():
+    if isinstance(value, float):
+        print(f"   ✓ {metric}: {value:.2f}")
+    else:
+        print(f"   ✓ {metric}: {value:,}")
 
-weekly_sample.to_parquet(ENRICHED_DIR / "ml_features_sample.parquet")
-print(f"   Created ML features for sample data")
+# Missing value analysis
+print("\n   Missing value analysis:")
+missing = df.isnull().sum()
+missing = missing[missing > 0].sort_values(ascending=False)
+
+if len(missing) > 0:
+    for col, count in missing.items():
+        pct = count / len(df) * 100
+        print(f"     • {col}: {count:,} ({pct:.1f}%)")
+else:
+    print("     ✓ No missing values detected")
 
 ################################################################################
-# 10. GENERATE COMPREHENSIVE DATA QUALITY REPORT
+# 4. DESCRIPTIVE STATISTICS
 ################################################################################
 
-print("\n10. Generating data quality report...")
+print("\n4. Descriptive statistics...")
+
+print("\n   Numeric columns summary:")
+print(df.describe())
+
+print("\n   Categorical columns:")
+categorical_cols = df.select_dtypes(include=['object']).columns
+for col in categorical_cols:
+    print(f"     • {col}: {df[col].nunique()} unique values")
+
+################################################################################
+# 5. KEY VARIABLES VALIDATION
+################################################################################
+
+print("\n5. Validating key variables...")
+
+# Check season range
+if 'season' in df.columns:
+    seasons = sorted(df['season'].unique())
+    print(f"   Seasons: {seasons[0]} to {seasons[-1]}")
+
+# Check positions
+if 'position_group' in df.columns:
+    positions = df['position_group'].value_counts()
+    print(f"   Position groups:")
+    for pos, count in positions.items():
+        print(f"     • {pos}: {count}")
+
+# Check transition indicator
+if 'post_transition' in df.columns:
+    transition_counts = df['post_transition'].value_counts()
+    print(f"   Post-transition indicator:")
+    for val, count in transition_counts.items():
+        print(f"     • {val}: {count}")
+
+# Check team changes
+if 'changed_team' in df.columns:
+    changes = df['changed_team'].value_counts()
+    print(f"   Team changes:")
+    for val, count in changes.items():
+        label = "Yes" if val == 1 else "No"
+        print(f"     • Changed ({label}): {count}")
+
+################################################################################
+# 6. CREATE DERIVED METRICS
+################################################################################
+
+print("\n6. Creating derived metrics...")
+
+# Already have z_score, but create additional standardized versions
+if 'metric_raw' in df.columns and 'sd_season' in df.columns:
+    df['metric_raw_scaled'] = df['metric_raw'] / (df['sd_season'] + 1e-10)
+    print(f"   ✓ Created scaled metric")
+
+# Create performance level categories
+if 'z_score' in df.columns:
+    df['performance_level'] = pd.cut(df['z_score'], 
+                                      bins=[-np.inf, -1, 0, 1, np.inf],
+                                      labels=['Below Avg', 'Average', 'Above Avg', 'Elite'])
+    print(f"   ✓ Created performance level categories")
+
+# Create career phase
+if 'years_exp' in df.columns:
+    df['career_phase'] = pd.cut(df['years_exp'],
+                                bins=[0, 3, 7, 12, np.inf],
+                                labels=['Early', 'Prime', 'Veteran', 'Late Career'])
+    print(f"   ✓ Created career phase categories")
+
+# Age squared for polynomial terms
+if 'age' in df.columns:
+    df['age_squared'] = df['age'] ** 2
+    print(f"   ✓ Created age polynomial features")
+
+################################################################################
+# 7. PLAYER-SEASON SUMMARIES
+################################################################################
+
+print("\n7. Creating player-season summaries...")
+
+if 'gsis_id' in df.columns and 'season' in df.columns:
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    player_season_stats = df.groupby(['gsis_id', 'season'])[numeric_cols].agg([
+        'mean', 'sum', 'std', 'count'
+    ]).reset_index()
+    
+    player_season_stats.to_parquet(ENRICHED_DIR / "player_season_summary.parquet")
+    print(f"   ✓ Saved player-season summaries: {len(player_season_stats)} records")
+
+################################################################################
+# 8. TEAM-SEASON SUMMARIES
+################################################################################
+
+print("\n8. Creating team-season summaries...")
+
+if 'team' in df.columns and 'season' in df.columns:
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    
+    team_season_stats = df.groupby(['team', 'season'])[numeric_cols].agg([
+        'mean', 'sum', 'std'
+    ]).reset_index()
+    
+    team_season_stats.to_parquet(ENRICHED_DIR / "team_season_summary.parquet")
+    print(f"   ✓ Saved team-season summaries: {len(team_season_stats)} records")
+
+################################################################################
+# 9. TRANSITION ANALYSIS
+################################################################################
+
+print("\n9. Analyzing transitions...")
+
+if 'changed_team' in df.columns and 'gsis_id' in df.columns:
+    transitions = df[df['changed_team'] == 1][['gsis_id', 'season', 'position_group', 
+                                                 'prev_team', 'new_team', 'metric_raw', 'z_score']]
+    transitions = transitions.sort_values(['gsis_id', 'season'])
+    
+    if len(transitions) > 0:
+        transitions.to_parquet(ENRICHED_DIR / "team_transitions.parquet")
+        print(f"   ✓ Identified {len(transitions)} team transition events")
+        
+        # Summary statistics
+        print(f"\n   Transition summary:")
+        print(f"     • Unique players: {transitions['gsis_id'].nunique()}")
+        print(f"     • Positions affected:")
+        for pos, count in transitions['position_group'].value_counts().items():
+            print(f"       - {pos}: {count}")
+
+################################################################################
+# 10. SAVE ENRICHED DATASET
+################################################################################
+
+print("\n10. Saving enriched dataset...")
+
+# Save full dataset in multiple formats
+df.to_parquet(ENRICHED_DIR / "nfl_panel_full.parquet")
+df.to_csv(ENRICHED_DIR / "nfl_panel_full.csv", index=False)
+
+print(f"   ✓ Saved: nfl_panel_full.parquet")
+print(f"   ✓ Saved: nfl_panel_full.csv")
+
+################################################################################
+# 11. GENERATE DATA QUALITY REPORT
+################################################################################
+
+print("\n11. Generating data quality report...")
 
 quality_report = {
     'timestamp': datetime.now().isoformat(),
-    'seasons_covered': SEASONS,
-    'data_sources': {
-        'injury_data': (ENRICHED_DIR / "injury_history.parquet").exists(),
-        'ngs_receiving': (ENRICHED_DIR / "ngs_receiving.parquet").exists(),
-        'ngs_rushing': (ENRICHED_DIR / "ngs_rushing.parquet").exists(),
-        'ngs_passing': (ENRICHED_DIR / "ngs_passing.parquet").exists(),
-        'snap_counts': (ENRICHED_DIR / "snap_counts.parquet").exists(),
-        'depth_charts': (ENRICHED_DIR / "depth_charts.parquet").exists(),
-    },
-    'enrichment_complete': True
+    'total_rows': len(df),
+    'total_columns': len(df.columns),
+    'columns': list(df.columns),
+    'memory_usage_mb': float(df.memory_usage(deep=True).sum() / 1024**2),
+    'duplicate_rows': int(df.duplicated().sum()),
+    'missing_values': df.isnull().sum().to_dict(),
 }
 
 import json
-with open(ENRICHED_DIR / "quality_report.json", 'w') as f:
-    json.dump(quality_report, f, indent=2)
+with open(ENRICHED_DIR / "data_quality_report.json", 'w') as f:
+    json.dump(quality_report, f, indent=2, default=str)
+
+print(f"   ✓ Saved: data_quality_report.json")
+
+################################################################################
+# SUMMARY
+################################################################################
 
 print("\n" + "=" * 80)
-print("PYTHON ENRICHMENT COMPLETE")
+print("DATA LOADING COMPLETE")
 print("=" * 80)
-print(f"\nEnriched data saved to: {ENRICHED_DIR}")
-print("\nAvailable enhancements:")
-for source, available in quality_report['data_sources'].items():
-    status = "✓" if available else "✗"
-    print(f"  {status} {source}")
+print(f"\nData summary:")
+print(f"  • Records: {len(df):,}")
+print(f"  • Features: {len(df.columns)}")
+print(f"  • Seasons: {df['season'].min() if 'season' in df.columns else 'N/A'} to {df['season'].max() if 'season' in df.columns else 'N/A'}")
+
+print(f"\nEnriched data saved to: {ENRICHED_DIR}/")
+print(f"\nFiles created:")
+print(f"  ✓ nfl_panel_full.parquet")
+print(f"  ✓ nfl_panel_full.csv")
+print(f"  ✓ player_season_summary.parquet")
+print(f"  ✓ team_season_summary.parquet")
+print(f"  ✓ team_transitions.parquet")
+print(f"  ✓ data_quality_report.json")
+
+print(f"\nNext step: Run preprocessing.py")
+print("=" * 80 + "\n")
 
 if __name__ == "__main__":
-    print("\nThis script provides advanced data enrichment beyond the R pipeline.")
-    print("Run after R data collection for maximum integration.")
+    print("Data loading pipeline completed!")
