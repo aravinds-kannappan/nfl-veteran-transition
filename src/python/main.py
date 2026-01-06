@@ -348,14 +348,14 @@ def main():
     all_successful = all(r[1] for r in results)
     
     if all_successful:
-        print("\n✅ PIPELINE EXECUTION SUCCESSFUL")
+        print("\n PIPELINE EXECUTION SUCCESSFUL")
         print(f"   Total time: {total_time:.2f}s ({total_time/60:.2f} minutes)")
         print(f"   Log file: {LOG_FILE}")
         print(f"   Summary file: {SUMMARY_FILE}")
         log_message("Pipeline completed successfully", "SUCCESS")
         return True
     else:
-        print("\n❌ PIPELINE EXECUTION FAILED")
+        print("\n PIPELINE EXECUTION FAILED")
         print(f"   Check log file for details: {LOG_FILE}")
         log_message("Pipeline failed", "ERROR")
         return False
