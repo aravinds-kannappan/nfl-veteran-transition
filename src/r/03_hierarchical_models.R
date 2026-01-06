@@ -36,7 +36,7 @@ print(summary(m3_fixed))
 # MODEL 4: RANDOM SLOPES (INDIVIDUAL TRAJECTORIES)
 # ------------------------------------------------------------------------------
 # Methodology: "Allowing heterogeneous aging and response trajectories"
-# We add (1 + rel_time | gsis_id)
+# I add (1 + rel_time | gsis_id)
 m4_random_slopes <- lmer(z_score ~ post_transition + poly(age, 2) + years_exp + 
                            team_quality + 
                            (1 + rel_time | gsis_id), 
@@ -72,7 +72,7 @@ print(anova_res)
 # ------------------------------------------------------------------------------
 # MODEL 6: POSITION INTERACTIONS (HYPOTHESIS TEST)
 # ------------------------------------------------------------------------------
-# Hypothesis: delta_RB > delta_WR > delta_QB
+# Hypothesis: delta_RB > delta_WR > delta_QB 
 m6_interaction <- lmer(z_score ~ post_transition * position_group + 
                          poly(age, 2) + years_exp + team_quality +
                          (1 + rel_time | gsis_id), 
