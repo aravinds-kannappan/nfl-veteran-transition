@@ -11,8 +11,8 @@ df <- readRDS("data/processed/01_base_metrics.rds")
 # ------------------------------------------------------------------------------
 # 1. IDENTIFY TEAM TRANSITIONS
 # ------------------------------------------------------------------------------
-# We need to find players who changed teams between season t-1 and t.
-# We explicitly filter for "Veteran" moves (Experience > 3 years).
+# I need to find players who changed teams between season t-1 and t.
+# I explicitly filter for "Veteran" moves (Experience > 3 years).
 
 df_sorted <- df %>%
   arrange(gsis_id, season) %>%
@@ -27,14 +27,14 @@ df_sorted <- df %>%
 # ------------------------------------------------------------------------------
 # 2. DEFINE TRANSITION WINDOWS (2 years Pre, 2 years Post)
 # ------------------------------------------------------------------------------
-# We isolate specific "transition events" to create clean panels.
+# I isolate specific "transition events" to create clean panels.
 transitions <- df_sorted %>%
   filter(changed_team == 1, years_exp >= 3) %>%
   select(gsis_id, transition_season = season, new_team = team)
 
 # Join back to create relative time centered at 0
 # Logic: Duplicate rows if a player has multiple distinct major transitions
-# For this repo, we take the *first* major veteran transition per player to satisfy independence.
+# For this repo, I take the *first* major veteran transition per player to satisfy independence.
 first_transitions <- transitions %>%
   group_by(gsis_id) %>%
   slice(1) %>%
@@ -72,8 +72,8 @@ analysis_panel <- analysis_panel %>%
     # If I am an RB, my supporting cast quality is approximated by the team's overall offensive EPA
     # (Simplified for this script: using random noise placeholder if external data missing)
     team_quality = case_when(
-      position_group == "RB" ~ rnorm(n(), 0, 1), # Replace with actual Passing EPA join
-      position_group == "QB" ~ rnorm(n(), 0, 1), # Replace with O-Line Grade
+      position_group == "RB" ~ rnorm(n(), 0, 1), 
+      position_group == "QB" ~ rnorm(n(), 0, 1), 
       TRUE ~ rnorm(n(), 0, 1)
     )
   )
@@ -105,7 +105,7 @@ analysis_panel <- analysis_panel %>%
 # ------------------------------------------------------------------------------
 # 4. COVARIATE: PRE-TRANSITION TREND
 # ------------------------------------------------------------------------------
-# We calculate the slope of performance in years -2 and -1
+# I calculate the slope of performance in years -2 and -1
 trend_calc <- analysis_panel %>%
   filter(rel_time < 0) %>%
   group_by(gsis_id) %>%
@@ -121,6 +121,5 @@ analysis_panel <- analysis_panel %>%
 # 5. FINAL EXPORT FOR MODELING
 # ------------------------------------------------------------------------------
 saveRDS(analysis_panel, "data/processed/02_modeling_panel.rds")
-# Also save CSV for Python
 write_csv(analysis_panel, "data/processed/nfl_panel_for_python.csv")
 
