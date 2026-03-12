@@ -1,141 +1,123 @@
-# NFL Veterans Team Change Effects: A Multi-Position Longitudinal Mixed-Effects Analysis
+# NFL Veterans Team Transition Predictor
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![R](https://img.shields.io/badge/R-4.0+-blue.svg)](https://www.r-project.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Analyzing how veteran NFL players perform after switching teams using causal inference and ML ensembles.**
 
-## Overview
+---
 
-This repository contains the complete implementation of a hierarchical mixed-effects modeling analysis examining whether veteran NFL offensive skill-position players (QB, RB, TE, WR) experience systematic performance changes when switching teams. The analysis uses play-by-play and weekly statistics from 2015-2024 via the free nflfastR package.
+## Problem Statement
 
-**Key Features:**
-- Dual implementation in both Python and R
-- Free data access (no API keys required)
-- Hierarchical mixed-effects models with random intercepts and slopes
-- Position-specific efficiency metrics (YPC, YPRR, EPA/play)
-- Comprehensive control for age decline, team quality, and selection bias
-- Interactive visualizations and reports
+When a veteran NFL offensive player (QB, RB, WR, TE) changes teams, does their performance systematically change — or are observed shifts explained by aging, scheme fit, and selection bias? This project isolates the **causal effect of team transitions** from confounding factors using longitudinal mixed-effects models and stacked ML ensembles, applied to 2015–2024 NFL play-by-play data.
 
+This matters for front offices evaluating free-agent signings and for analysts trying to separate signal from noise in player valuation.
 
-### Python Setup
+## Key Design Decisions
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/nfl-veteran-transitions.git
-cd nfl-veteran-transitions
+- **Hierarchical mixed-effects models** with player-level random intercepts and slopes — chosen over fixed-effects regression to account for unobserved heterogeneity across players while sharing strength across positions.
+- **Position-specific efficiency metrics**: YPC (RB), YPRR (WR/TE), EPA/play (QB), ANY/A (QB) — raw counting stats would conflate opportunity with skill.
+- **Longitudinal window**: 2 seasons pre-transition and 2 seasons post-transition, excluding 2020–2021 COVID seasons to avoid confounding from shortened/abnormal play.
+- **Stacked ensemble prediction**: combines gradient boosting, ridge regression, and random forest for post-transition performance forecasting, with temporal feature engineering capturing trajectory trends.
+- **Controls for confounders**: age curves, team offensive quality, opponent strength, and snap count to mitigate selection bias (better players get more opportunity on new teams).
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+## How the System Works End-to-End
 
-# Install dependencies
-pip install -r requirements.txt
+```
+nflfastR / nfl_data_py          Hierarchical Mixed-Effects     Stacked ML Ensemble
+┌──────────────────┐            ┌──────────────────────┐       ┌─────────────────────┐
+│  Play-by-play &  │──Clean──▶  │  Causal estimation   │       │  Post-transition     │
+│  weekly stats    │  & merge   │  of transition effect │──▶    │  performance         │
+│  (2015-2024)     │            │  (lme4 / statsmodels) │       │  prediction          │
+└──────────────────┘            └──────────────────────┘       └─────────────────────┘
+        │                                                               │
+        ▼                                                               ▼
+   Veteran transition              Position-specific               Interactive
+   identification &                effect estimates &              visualizations
+   feature engineering             confidence intervals            & reports
 ```
 
-### R Setup
+1. **Data Collection** — Pull play-by-play and roster data via `nflfastR` (R) or `nfl_data_py` (Python). No API keys needed.
+2. **Preprocessing** — Identify veteran transitions (≥3 seasons experience), compute rolling efficiency metrics, build longitudinal panel.
+3. **Causal Modeling** — Fit hierarchical mixed-effects models per position to estimate the transition effect while controlling for aging and team quality.
+4. **Prediction** — Stacked ensemble forecasts post-transition performance using pre-transition trajectory features.
+5. **Visualization** — Generate position-level effect plots, individual player trajectories, and model diagnostics.
 
-```r
-# Install required packages
-install.packages(c("nflfastR", "dplyr", "tidyr", "lme4", "nlme", 
-                   "ggplot2", "broom.mixed", "performance"))
+## Tradeoffs & Future Improvements
 
-# Or use renv for reproducibility
-renv::restore()
+- **Mixed-effects vs. difference-in-differences**: Mixed-effects models handle unbalanced panels better (not all players have equal pre/post data), but assume linear random effects. A DiD approach could better handle time-varying confounders.
+- **Sample size**: ~110–150 veteran transitions is modest. Expanding to defensive positions or longer time windows would increase power but introduce more heterogeneity.
+- **Selection bias**: Players who switch teams aren't random — they were either released (negative signal) or pursued in free agency (positive signal). Current controls help but an instrumental variable approach could strengthen causal claims.
+- **No scheme-level features**: Offensive system differences (air raid vs. west coast) likely mediate transition effects but aren't currently encoded.
+
+## Repository Structure
+
+```
+├── data/                    # Raw and processed datasets
+├── results/                 # Model outputs, plots, tables
+├── src/
+│   ├── python/
+│   │   ├── data_collection.py
+│   │   ├── preprocessing.py
+│   │   └── modeling.py
+│   └── r/
+│       ├── 01_data_collection.R
+│       ├── 02_preprocessing.R
+│       ├── 03_modeling.R
+│       └── 04_visualization.R
+├── NFL_Veterans_Transition_Paper.pdf   # Full writeup
+├── requirements.txt
+├── nfl-veteran-transitions.Rproj
+└── README.md
 ```
 
-## Quick Start
+## How to Run
 
 ### Python
+```bash
+git clone https://github.com/aravinds-kannappan/nfl-veteran-transition.git
+cd nfl-veteran-transition
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 
-```python
+# Run the full pipeline
+python -c "
 from src.python import data_collection, preprocessing, modeling
-
-# 1. Download data
 data_collection.download_nfl_data(seasons=range(2015, 2025))
-
-# 2. Preprocess and identify veteran transitions
 df = preprocessing.create_veteran_transitions_dataset()
-
-# 3. Fit mixed-effects model
 model = modeling.fit_hierarchical_model(df, position='RB')
-
-# 4. Visualize results
 modeling.plot_model_results(model)
+"
 ```
 
 ### R
-
 ```r
-source("src/r/utils.R")
+install.packages(c("nflfastR", "dplyr", "tidyr", "lme4", "nlme",
+                   "ggplot2", "broom.mixed", "performance"))
 
-# 1. Download data
 source("src/r/01_data_collection.R")
-
-# 2. Preprocess
 source("src/r/02_preprocessing.R")
-
-# 3. Fit models
 source("src/r/03_modeling.R")
-
-# 4. Visualize
 source("src/r/04_visualization.R")
 ```
 
 ## Data Sources
 
-All data is freely available via:
-- **Python**: `nfl_data_py` package
-- **R**: `nflfastR` package
+All data freely available via `nfl_data_py` (Python) and `nflfastR` (R). No API keys required.
 
-No API keys or authentication required.
-
-### Data Coverage
-- **Timespan**: 2015-2024 (excluding 2020-2021 COVID seasons)
+- **Timespan**: 2015–2024 (excl. 2020–2021 COVID seasons)
 - **Positions**: QB, RB, WR, TE
-- **Metrics**: EPA, YPC, YPRR, ANY/A, Success Rate
-- **Sample Size**: ~110-150 veteran transitions
+- **Sample**: ~110–150 veteran transitions
 
-## Methodology
+## Paper
 
-### Key Features
-1. **Hierarchical Mixed-Effects Models**: Random intercepts and slopes for individual players
-2. **Position-Specific Metrics**: YPC (RB), YPRR (WR/TE), EPA/play (QB)
-3. **Comprehensive Controls**: Age, experience, team quality, opponent strength
-4. **Longitudinal Design**: 2 years pre-transition, 2 years post-transition
+Full methodology and results: [`NFL_Veterans_Transition_Paper.pdf`](./NFL_Veterans_Transition_Paper.pdf)
 
-Full results available in `data/plots`
+## Authorship
 
-## Citation
-
-If you use this code or methodology, please cite:
-
-```bibtex
-@misc{kannappan2025nfl,
-  author = {Kannappan, Aravind},
-  title = {NFL Veterans Team Change Effects: A Multi-Position Longitudinal Mixed-Effects Analysis},
-  year = {2025},
-  publisher = {GitHub},
-  url = {https://github.com/yourusername/nfl-veteran-transitions}
-}
-```
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
+All code, modeling, and analysis in this repository is solely my own work. Data is sourced from the open-source `nflfastR` / `nfl_data_py` packages developed by Ben Baldwin, Sebastian Carl, and contributors.
 
 ## Contact
 
-Aravind Kannappan - ak12124@nyu.edu
+Aravind Kannappan — [ak12124@nyu.edu](mailto:ak12124@nyu.edu) — [LinkedIn](https://linkedin.com/in/aravindkannappan)
 
-## Acknowledgments
+## License
 
-- nflfastR team for comprehensive NFL data
-- Ben Baldwin and Sebastian Carl for nflfastR development
-- nfl_data_py developers for Python port
+MIT
