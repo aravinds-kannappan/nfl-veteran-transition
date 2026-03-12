@@ -114,10 +114,6 @@ Full methodology and results: [`NFL_Veterans_Transition_Paper.pdf`](./NFL_Vetera
 
 All code, modeling, and analysis in this repository is solely my own work. Data is sourced from the open-source `nflfastR` / `nfl_data_py` packages developed by Ben Baldwin, Sebastian Carl, and contributors.
 
-## Contact
-
-Aravind Kannappan — [ak12124@nyu.edu](mailto:ak12124@nyu.edu) — [LinkedIn](https://linkedin.com/in/aravindkannappan)
-
 ## License
 
 MIT
